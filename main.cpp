@@ -15,10 +15,16 @@ int main() {
 
     /* Insert some key/value pairs in a write transaction: */
     auto wtxn = lmdb::txn::begin(env);
-    auto dbi = lmdb::dbi::open(wtxn, nullptr);
+    auto dbi = lmdb::dbi::open(wtxn, nullptr, MDB_DUPSORT);
     dbi.put(wtxn, "username", "jhacker");
     dbi.put(wtxn, "email", "jhacker@example.org");
+    dbi.put(wtxn, "email", "mwo@example.org");
+    dbi.put(wtxn, "fullname", "Middle name");
+    dbi.put(wtxn, "job", "accountant");
+    dbi.put(wtxn, "email", "dddd@example.org");
     dbi.put(wtxn, "fullname", "J. Random Hacker");
+    dbi.put(wtxn, "job", "programmer");
+    dbi.put(wtxn, "fullname", "Test Name");
     wtxn.commit();
 
     /* Fetch key/value pairs in a read-only transaction: */
@@ -31,20 +37,51 @@ int main() {
     cursor.close();
     rtxn.abort();
 
-    lmdb::val key1 {"username"};
+    lmdb::val key1 {"email"};
     lmdb::val  data2;
     string  data3;
 
+
+    //
+    // get a single value
+    //
 
     rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     dbi.get(rtxn, key1, data2);
     rtxn.abort();
 
 
-
-
     cout << "Found key: " << string(data2.data(), data2.size()) << endl;
 
+    cout << endl;
+
+    //
+    // retrieve multiple items for same key
+    //
+
+    rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    cursor = lmdb::cursor::open(rtxn, dbi);
+
+    lmdb::val key2 {"fullname"}, value2;
+
+    // set cursor the the first item
+    cursor.get(key2, value2, MDB_SET);
+
+    // process the first item
+    cout << "key2: " << string(key2.data(), key2.size())
+         << ", value2: " << string(value2.data(), value2.size()) << endl;
+
+    // process other values for the same key
+    while (cursor.get(key2, value2, MDB_NEXT_DUP)) {
+        cout << "key2: " << string(key2.data(), key2.size())
+             << ", value2: " << string(value2.data(), value2.size()) << endl;
+    }
+
+    cursor.close();
+    rtxn.abort();
+
+
+    cout << endl;
 
     cout << "Hello, World!" << endl;
     return 0;
