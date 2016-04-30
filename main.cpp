@@ -30,12 +30,58 @@ int main() {
     /* Fetch key/value pairs in a read-only transaction: */
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto cursor = lmdb::cursor::open(rtxn, dbi);
+
     std::string key, value;
+
     while (cursor.get(key, value, MDB_NEXT)) {
         std::printf("key: '%s', value: '%s'\n", key.c_str(), value.c_str());
     }
+
     cursor.close();
     rtxn.abort();
+
+    //
+    // now put some uint64_t value there
+    //
+
+    wtxn = lmdb::txn::begin(env);
+    dbi = lmdb::dbi::open(wtxn, nullptr, MDB_DUPSORT);
+
+
+
+    uint64_t amount {9382};
+
+    cout << "sizeof(amount): " << sizeof(amount) << endl;
+
+    lmdb::val key_val    {"amount"};
+    lmdb::val amount_val {static_cast<void*>(&amount), sizeof(amount)};
+
+    dbi.put(wtxn, key_val, amount_val);
+
+
+    wtxn.commit();
+
+    //
+    // get the amount
+    //
+
+    lmdb::val amount_data;
+
+    rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    dbi.get(rtxn, key_val, amount_data);
+    rtxn.abort();
+
+
+    cout << "\nAmount found: " << *(amount_data.data<uint64_t>()) << endl;
+
+    cout << endl;
+
+
+
+    //
+    // get single email
+    //
+
 
     lmdb::val key1 {"email"};
     lmdb::val  data2;
@@ -79,6 +125,8 @@ int main() {
 
     cursor.close();
     rtxn.abort();
+
+
 
 
     cout << endl;
